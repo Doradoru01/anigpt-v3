@@ -14,30 +14,12 @@ export default function HomePage() {
   const searchParams = useSearchParams()
 
   useEffect(() => {
-    // Handle error messages from callback
     const error = searchParams.get('error')
     if (error) {
-      switch (error) {
-        case 'no_code':
-          setMessage('❌ Invalid magic link. Please request a new one.')
-          break
-        case 'exchange_failed':
-          setMessage('❌ Authentication failed. Please try again.')
-          break
-        case 'no_session':
-          setMessage('❌ Could not create session. Please try again.')
-          break
-        case 'callback_failed':
-          setMessage('❌ Login process failed. Please try again.')
-          break
-        default:
-          setMessage('❌ Something went wrong. Please try again.')
-      }
+      setMessage('❌ Login failed. Please try again.')
     }
 
-    // Redirect if user is logged in
     if (user && !authLoading) {
-      console.log('User found, redirecting to dashboard')
       router.push('/dashboard')
     }
   }, [user, authLoading, router, searchParams])
@@ -48,28 +30,22 @@ export default function HomePage() {
     setMessage('')
     
     try {
-      // Use your exact Codespace URL
-      const redirectUrl = 'https://laughing-system-4jrxgr4wpgp4f5r65-3000.app.github.dev/auth/callback'
-      console.log('Sending magic link with redirect to:', redirectUrl)
-      
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: redirectUrl
+          emailRedirectTo: `${window.location.origin}/auth/callback`
         }
       })
       
       if (error) throw error
       setMessage('🚀 Check your email for the magic link!')
-    } catch (error: any) {
-      console.error('Sign in error:', error)
-      setMessage(`❌ Error: ${error.message}`)
+    } catch (error) {
+      setMessage('❌ Error sending magic link. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
-  // Show loading while checking auth
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center">
@@ -81,7 +57,6 @@ export default function HomePage() {
     )
   }
 
-  // Redirect if user exists
   if (user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center">
@@ -93,7 +68,6 @@ export default function HomePage() {
     )
   }
 
-  // Login form
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center p-4">
       <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 w-full max-w-md border border-white/20">
