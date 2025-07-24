@@ -16,18 +16,13 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [loadingMessages, setLoadingMessages] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const quickPrompts = [
-    "💡 Give me motivation for today",
-    "🎯 Help me prioritize my goals",
-    "😊 Analyze my recent mood patterns",
-    "�� Tips for building better habits",
-    "📋 How to be more productive?",
-    "🧘 I'm feeling stressed, help me",
-    "🌟 Celebrate my recent achievements",
-    "📈 Review my progress this week"
+    "💪 Give me motivation for today",
+    "🎯 Help me be more productive", 
+    "😊 I need some encouragement",
+    "📋 How to organize my tasks better?"
   ]
 
   useEffect(() => {
@@ -47,21 +42,18 @@ export default function ChatPage() {
   const loadChatHistory = async () => {
     if (!user) return
     
-    setLoadingMessages(true)
     try {
       const { data, error } = await supabase
         .from('chat_messages')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: true })
-        .limit(50)
+        .limit(20)
 
       if (error) throw error
       setMessages(data || [])
     } catch (error) {
-      console.error('Error loading chat history:', error)
-    } finally {
-      setLoadingMessages(false)
+      console.error('Error loading chat:', error)
     }
   }
 
@@ -84,20 +76,18 @@ export default function ChatPage() {
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: text,
           userId: user.id
         }),
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to get AI response')
-      }
-
       const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to get response')
+      }
       
       // Add AI response
       const aiMessage: ChatMessage = {
@@ -124,23 +114,6 @@ export default function ChatPage() {
     }
   }
 
-  const clearChat = async () => {
-    if (!confirm('Clear all chat history?')) return
-    
-    try {
-      const { error } = await supabase
-        .from('chat_messages')
-        .delete()
-        .eq('user_id', user.id)
-
-      if (error) throw error
-      setMessages([])
-      alert('Chat history cleared! 🗑️')
-    } catch (error: any) {
-      alert('Error clearing chat: ' + error.message)
-    }
-  }
-
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -149,40 +122,27 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-200px)] flex flex-col space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">🤖 AI Companion</h1>
-          <p className="text-gray-600 mt-2">Your personal AI coach for productivity and wellness guidance</p>
-        </div>
-        <button
-          onClick={clearChat}
-          className="px-4 py-2 text-sm text-red-600 border border-red-300 rounded-lg hover:bg-red-50"
-        >
-          🗑️ Clear Chat
-        </button>
+    <div className="h-[calc(100vh-200px)] flex flex-col">
+      <div className="mb-4">
+        <h1 className="text-3xl font-bold text-gray-900">🤖 AI Companion</h1>
+        <p className="text-gray-600">Your personal AI coach for motivation and guidance</p>
       </div>
 
-      {/* Chat Messages */}
+      {/* Chat Container */}
       <div className="flex-1 bg-white rounded-lg shadow overflow-hidden flex flex-col">
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {loadingMessages ? (
-            <div className="flex items-center justify-center h-32">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
-          ) : messages.length === 0 ? (
+          {messages.length === 0 ? (
             <div className="text-center py-8">
               <div className="text-6xl mb-4">🤖</div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">
                 Welcome to your AI Companion!
               </h3>
               <p className="text-gray-500 mb-6">
-                I'm here to help you with productivity, motivation, and personal growth.
-                <br />Ask me anything or try one of the suggestions below!
+                Ask me anything or try one of these suggestions:
               </p>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-w-2xl mx-auto">
-                {quickPrompts.slice(0, 4).map((prompt, index) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-w-lg mx-auto">
+                {quickPrompts.map((prompt, index) => (
                   <button
                     key={index}
                     onClick={() => sendMessage(prompt)}
@@ -202,7 +162,7 @@ export default function ChatPage() {
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-3xl px-4 py-3 rounded-lg ${
+                    className={`max-w-xs lg:max-w-md px-4 py-3 rounded-lg ${
                       message.role === 'user'
                         ? 'bg-blue-600 text-white'
                         : 'bg-gray-100 text-gray-900'
@@ -250,46 +210,24 @@ export default function ChatPage() {
           )}
         </div>
 
-        {/* Quick Prompts */}
-        {messages.length > 0 && (
-          <div className="border-t bg-gray-50 p-3">
-            <div className="flex flex-wrap gap-2">
-              {quickPrompts.slice(0, 4).map((prompt, index) => (
-                <button
-                  key={index}
-                  onClick={() => sendMessage(prompt)}
-                  disabled={loading}
-                  className="px-3 py-1 text-xs bg-white text-gray-600 border border-gray-300 rounded-full hover:bg-gray-100 disabled:opacity-50"
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Input Area */}
         <div className="border-t p-4">
           <div className="flex gap-3">
-            <textarea
+            <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Ask me about productivity, goals, habits, mood, or anything else..."
+              placeholder="Ask me anything..."
               disabled={loading}
-              rows={2}
-              className="flex-1 p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+              className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
             />
             <button
               onClick={() => sendMessage()}
               disabled={loading || !input.trim()}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
             >
-              {loading ? '⏳' : '📤'}
+              {loading ? '⏳' : 'Send'}
             </button>
-          </div>
-          <div className="mt-2 text-xs text-gray-500">
-            Press Enter to send, Shift+Enter for new line
           </div>
         </div>
       </div>
