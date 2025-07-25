@@ -1,114 +1,47 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { supabase } from '@/lib/supabase'
-import { useAuth } from '../../providers'
-
-interface ChatMessage {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  created_at: string
-}
+import { useState } from 'react'
 
 export default function ChatPage() {
-  const { user } = useAuth()
-  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
+  const [messages, setMessages] = useState<Array<{role: string, content: string}>>([])
   const [loading, setLoading] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const quickPrompts = [
-    "💪 Give me motivation for today",
-    "🎯 Help me be more productive", 
-    "😊 I need some encouragement",
-    "📋 How to organize my tasks better?"
-  ]
-
-  useEffect(() => {
-    if (user) {
-      loadChatHistory()
-    }
-  }, [user])
-
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
-
-  const loadChatHistory = async () => {
-    if (!user) return
+  const sendMessage = async () => {
+    if (!input.trim() || loading) return
     
-    try {
-      const { data, error } = await supabase
-        .from('chat_messages')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: true })
-        .limit(20)
-
-      if (error) throw error
-      setMessages(data || [])
-    } catch (error) {
-      console.error('Error loading chat:', error)
-    }
-  }
-
-  const sendMessage = async (messageText?: string) => {
-    const text = messageText || input.trim()
-    if (!text || !user || loading) return
-    
-    setLoading(true)
+    const userMessage = input.trim()
     setInput('')
+    setLoading(true)
     
-    // Add user message immediately
-    const userMessage: ChatMessage = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: text,
-      created_at: new Date().toISOString()
-    }
-    setMessages(prev => [...prev, userMessage])
+    // Add user message
+    setMessages(prev => [...prev, { role: 'user', content: userMessage }])
 
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: text,
-          userId: user.id
+          message: userMessage,
+          userId: 'test-user'
         }),
       })
 
       const data = await response.json()
       
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to get response')
+        throw new Error(data.error || 'API Error')
       }
       
       // Add AI response
-      const aiMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: data.reply,
-        created_at: new Date().toISOString()
-      }
-      setMessages(prev => [...prev, aiMessage])
+      setMessages(prev => [...prev, { role: 'assistant', content: data.reply }])
       
-    } catch (error) {
-      console.error('Error sending message:', error)
-      
-      // Add error message
-      const errorMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again! 🤖',
-        created_at: new Date().toISOString()
-      }
-      setMessages(prev => [...prev, errorMessage])
+    } catch (error: any) {
+      console.error('Chat error:', error)
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: `Error: ${error.message}` 
+      }])
     } finally {
       setLoading(false)
     }
@@ -122,111 +55,75 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-200px)] flex flex-col">
-      <div className="mb-4">
-        <h1 className="text-3xl font-bold text-gray-900">🤖 AI Companion</h1>
-        <p className="text-gray-600">Your personal AI coach for motivation and guidance</p>
-      </div>
-
-      {/* Chat Container */}
-      <div className="flex-1 bg-white rounded-lg shadow overflow-hidden flex flex-col">
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+    <div className="max-w-4xl mx-auto p-6">
+      <div className="bg-white rounded-lg shadow-lg">
+        <div className="border-b p-4">
+          <h1 className="text-2xl font-bold">🤖 AI Chat Test</h1>
+          <p className="text-gray-600">Test your OpenAI integration</p>
+        </div>
+        
+        {/* Messages */}
+        <div className="h-96 overflow-y-auto p-4 space-y-4">
           {messages.length === 0 ? (
             <div className="text-center py-8">
-              <div className="text-6xl mb-4">🤖</div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Welcome to your AI Companion!
-              </h3>
-              <p className="text-gray-500 mb-6">
-                Ask me anything or try one of these suggestions:
-              </p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-w-lg mx-auto">
-                {quickPrompts.map((prompt, index) => (
-                  <button
-                    key={index}
-                    onClick={() => sendMessage(prompt)}
-                    disabled={loading}
-                    className="p-3 text-left text-sm bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 disabled:opacity-50"
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
+              <div className="text-4xl mb-2">💬</div>
+              <p className="text-gray-500">Start a conversation with AI!</p>
             </div>
           ) : (
-            <>
-              {messages.map((message) => (
+            messages.map((msg, idx) => (
+              <div
+                key={idx}
+                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
                 <div
-                  key={message.id}
-                  className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                    msg.role === 'user'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-800'
+                  }`}
                 >
-                  <div
-                    className={`max-w-xs lg:max-w-md px-4 py-3 rounded-lg ${
-                      message.role === 'user'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-900'
-                    }`}
-                  >
-                    <div className="flex items-start gap-2">
-                      <span className="text-lg">
-                        {message.role === 'user' ? '👤' : '🤖'}
-                      </span>
-                      <div className="flex-1">
-                        <div className="whitespace-pre-wrap">{message.content}</div>
-                        <div
-                          className={`text-xs mt-1 ${
-                            message.role === 'user' ? 'text-blue-200' : 'text-gray-500'
-                          }`}
-                        >
-                          {new Date(message.created_at).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </div>
-                      </div>
-                    </div>
+                  <span className="text-xs font-semibold">
+                    {msg.role === 'user' ? '👤 You' : '🤖 AI'}
+                  </span>
+                  <div className="mt-1">{msg.content}</div>
+                </div>
+              </div>
+            ))
+          )}
+          
+          {loading && (
+            <div className="flex justify-start">
+              <div className="bg-gray-100 px-4 py-2 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold">🤖 AI</span>
+                  <div className="flex space-x-1">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
                   </div>
                 </div>
-              ))}
-              
-              {loading && (
-                <div className="flex justify-start">
-                  <div className="bg-gray-100 text-gray-900 max-w-xs px-4 py-3 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">🤖</span>
-                      <div className="flex space-x-1">
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              <div ref={messagesEndRef} />
-            </>
+              </div>
+            </div>
           )}
         </div>
-
-        {/* Input Area */}
+        
+        {/* Input */}
         <div className="border-t p-4">
-          <div className="flex gap-3">
+          <div className="flex gap-2">
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Ask me anything..."
+              placeholder="Type your message..."
               disabled={loading}
-              className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+              className="flex-1 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <button
-              onClick={() => sendMessage()}
+              onClick={sendMessage}
               disabled={loading || !input.trim()}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
-              {loading ? '⏳' : 'Send'}
+              Send
             </button>
           </div>
         </div>

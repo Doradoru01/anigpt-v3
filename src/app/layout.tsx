@@ -1,11 +1,11 @@
 import './globals.css'
 import { Inter } from 'next/font/google'
-import Providers from './providers'
+import AuthProvider from '../components/AuthProvider'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata = {
-  title: 'AniGPT V3 - Your AI Productivity Companion',
+  title: 'AniGPT V3 - AI Productivity Platform',
   description: 'Advanced personal productivity platform with AI intelligence',
 }
 
@@ -17,9 +17,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <Providers>
+        <AuthProvider>
           {children}
-        </Providers>
+        </AuthProvider>
       </body>
     </html>
   )
